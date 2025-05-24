@@ -23,6 +23,14 @@ import {
   TagsValue,
   TagsGroup,
 } from "@/components/ui/kibo-ui/tags"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 type Result = {
   title: string
@@ -47,6 +55,8 @@ const Results: React.FC = () => {
   const [llmEnhanced, setLlmEnhanced] = useState(searchParams.get("llm") === "1")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [summary, setSummary] = useState<string | null>(null)
+  const [summaryLoading, setSummaryLoading] = useState(false)
+  const [openPlotDialog, setOpenPlotDialog] = useState<null | { plot: string; title: string }>(null)
 
   useEffect(() => {
     const q = searchParams.get("query") ?? ""
@@ -54,45 +64,87 @@ const Results: React.FC = () => {
     setLlmEnhanced(searchParams.get("llm") === "1")
     if (!q) {
       setResults([])
+      setSummary(null)
+      setSummaryLoading(false)
       return
     }
     setLoading(true)
     setError(null)
     setSummary(null)
-    const endpoint = llmEnhanced
-      ? `http://api.temusearch.nabilmuafa.com/llm/enhanced-search?query=${encodeURIComponent(q)}`
-      : `http://api.temusearch.nabilmuafa.com/search?query=${encodeURIComponent(q)}`
-    fetch(endpoint)
-      .then(res => {
-        if (!res.ok) throw new Error("Failed to fetch results")
-        const result = res.json()
-        return result
-      })
-      .then(data => {
-        let arr: Result[]
-        if (llmEnhanced) {
-          arr = data.results ?? []
-          setSummary(data.summary ?? null)
-        } else {
-          arr = data.results ?? data
-          setSummary(null)
-        }
-        const grouped: Record<string, Result[]> = {}
-        arr.forEach(r => {
-          if (!grouped[r.title]) grouped[r.title] = []
-          const key = `${r.plot}|||${r.source}`
-          if (!grouped[r.title].some(x => `${x.plot}|||${x.source}` === key)) {
-            grouped[r.title].push(r)
+    setSummaryLoading(false)
+    if (!llmEnhanced) {
+
+      fetch(`http://api.temusearch.nabilmuafa.com/search?query=${encodeURIComponent(q)}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to fetch results")
+          return res.json()
+        })
+        .then(data => {
+          const arr: Result[] = data.results ?? data
+          const grouped: Record<string, Result[]> = {}
+          arr.forEach(r => {
+            if (!grouped[r.title]) grouped[r.title] = []
+            const key = `${r.plot}|||${r.source}`
+            if (!grouped[r.title].some(x => `${x.plot}|||${x.source}` === key)) {
+              grouped[r.title].push(r)
+            }
+          })
+          const groupedArr: GroupedResult[] = Object.entries(grouped).map(([title, items]) => ({
+            title,
+            items
+          }))
+          setResults(groupedArr)
+        })
+        .catch(e => setError(e.message))
+        .finally(() => setLoading(false))
+    } else {
+
+      fetch(`http://api.temusearch.nabilmuafa.com/search?query=${encodeURIComponent(q)}`)
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to fetch results")
+          return res.json()
+        })
+        .then(data => {
+          const arr: Result[] = data.results ?? data
+          const grouped: Record<string, Result[]> = {}
+          arr.forEach(r => {
+            if (!grouped[r.title]) grouped[r.title] = []
+            const key = `${r.plot}|||${r.source}`
+            if (!grouped[r.title].some(x => `${x.plot}|||${x.source}` === key)) {
+              grouped[r.title].push(r)
+            }
+          })
+          const groupedArr: GroupedResult[] = Object.entries(grouped).map(([title, items]) => ({
+            title,
+            items
+          }))
+          setResults(groupedArr)
+          setLoading(false)
+
+          if (arr.length > 0) {
+            setSummaryLoading(true)
+            fetch(`http://api.temusearch.nabilmuafa.com/llm/enhanced-search?query=${encodeURIComponent(q)}`)
+              .then(res => {
+                if (!res.ok) throw new Error("Failed to fetch summary")
+                return res.json()
+              })
+              .then(data => {
+                setSummary(data.summary ?? null)
+              })
+              .catch(() => setSummary(null))
+              .finally(() => setSummaryLoading(false))
+          } else {
+            setSummary(null)
+            setSummaryLoading(false)
           }
         })
-        const groupedArr: GroupedResult[] = Object.entries(grouped).map(([title, items]) => ({
-          title,
-          items
-        }))
-        setResults(groupedArr)
-      })
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
+        .catch(e => {
+          setError(e.message)
+          setLoading(false)
+          setSummary(null)
+          setSummaryLoading(false)
+        })
+    }
   }, [searchParams, llmEnhanced])
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -230,13 +282,21 @@ const Results: React.FC = () => {
           </label>
         </div>
       </div>
-      {llmEnhanced && summary && !loading && !error && (
-        <div className="w-full max-w-2xl mb-6 p-4 rounded-lg bg-muted border text-sm flex flex-col gap-2">
+      {llmEnhanced && !loading && !error && (
+        <div className="w-full max-w-2xl mb-6 p-4 rounded-lg bg-muted border text-sm flex flex-col gap-2 min-h-[80px]">
           <div className="flex items-center font-semibold mb-2">
             <StarIcon size={18} className="mr-2 text-yellow-500" />
             Top Result Plot Summary
           </div>
-          <div>{summary}</div>
+          <div>
+            {summaryLoading ? (
+              <Skeleton className="h-5 w-full max-w-lg" />
+            ) : summary ? (
+              summary
+            ) : (
+              <span className="text-muted-foreground">No summary available.</span>
+            )}
+          </div>
         </div>
       )}
       <div className="w-full max-w-2xl pb-20">
@@ -280,11 +340,38 @@ const Results: React.FC = () => {
                       <React.Fragment key={idx}>
                         {idx > 0 && <Separator className="my-4" />}
                         {r.plot && (
-                          <div className="text-sm text-muted-foreground mb-1">
-                            {r.plot.length > 300
-                              ? r.plot.slice(0, 300) + "..."
-                              : r.plot}
-                          </div>
+                          <Dialog
+                            open={openPlotDialog?.plot === r.plot && openPlotDialog?.title === group.title}
+                            onOpenChange={open => {
+                              if (open) {
+                                setOpenPlotDialog({ plot: r.plot!, title: group.title })
+                              } else {
+                                setOpenPlotDialog(null)
+                              }
+                            }}
+                          >
+                            <DialogTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-sm text-muted-foreground mb-1 cursor-pointer hover:underline bg-transparent border-none p-0 text-left"
+                                onClick={() => setOpenPlotDialog({ plot: r.plot!, title: group.title })}
+                              >
+                                {r.plot.length > 300
+                                  ? r.plot.slice(0, 300) + "..."
+                                  : r.plot}
+                              </button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>
+                                  {group.title} - Plot
+                                </DialogTitle>
+                              </DialogHeader>
+                              <ScrollArea className="max-h-[60vh]">
+                                <div className="whitespace-pre-line text-sm">{r.plot}</div>
+                              </ScrollArea>
+                            </DialogContent>
+                          </Dialog>
                         )}
                         {r.snippet && <div className="text-muted-foreground">{r.snippet}</div>}
                         {r.tags && r.tags.length > 0 && (
