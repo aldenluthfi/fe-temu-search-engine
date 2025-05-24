@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.2.2",
+    "@radix-ui/react-switch": "^1.2.5",
     "@tailwindcss/vite": "^4.1.5",
     "@types/react-router-dom": "^5.3.3",
     "class-variance-authority": "^0.7.1",
