@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react"
 import { useSearchParams } from "react-router-dom"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Search, CheckIcon } from "lucide-react"
+import { Search, CheckIcon, StarIcon } from "lucide-react"
 import {
   Card,
   CardHeader,
@@ -46,6 +46,7 @@ const Results: React.FC = () => {
   const [error, setError] = useState<string | null>(null)
   const [llmEnhanced, setLlmEnhanced] = useState(searchParams.get("llm") === "1")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [summary, setSummary] = useState<string | null>(null)
 
   useEffect(() => {
     const q = searchParams.get("query") ?? ""
@@ -57,6 +58,7 @@ const Results: React.FC = () => {
     }
     setLoading(true)
     setError(null)
+    setSummary(null)
     const endpoint = llmEnhanced
       ? `http://api.temusearch.nabilmuafa.com/llm/enhanced-search?query=${encodeURIComponent(q)}`
       : `http://api.temusearch.nabilmuafa.com/search?query=${encodeURIComponent(q)}`
@@ -67,7 +69,14 @@ const Results: React.FC = () => {
         return result
       })
       .then(data => {
-        const arr: Result[] = data.results ?? data
+        let arr: Result[]
+        if (llmEnhanced) {
+          arr = data.results ?? []
+          setSummary(data.summary ?? null)
+        } else {
+          arr = data.results ?? data
+          setSummary(null)
+        }
         const grouped: Record<string, Result[]> = {}
         arr.forEach(r => {
           if (!grouped[r.title]) grouped[r.title] = []
@@ -221,6 +230,15 @@ const Results: React.FC = () => {
           </label>
         </div>
       </div>
+      {llmEnhanced && summary && !loading && !error && (
+        <div className="w-full max-w-2xl mb-6 p-4 rounded-lg bg-muted border text-sm flex flex-col gap-2">
+          <div className="flex items-center font-semibold mb-2">
+            <StarIcon size={18} className="mr-2 text-yellow-500" />
+            Top Result Plot Summary
+          </div>
+          <div>{summary}</div>
+        </div>
+      )}
       <div className="w-full max-w-2xl pb-20">
         {!loading && !error && filteredResults.length > 0 && (
           <div className="mb-4 text-sm text-muted-foreground">
