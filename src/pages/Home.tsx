@@ -20,16 +20,23 @@ const Home: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-background">
-      <h1 className="text-8xl font-bold mb-6">TəmuSəarch</h1>
-      <form onSubmit={handleSubmit} className="flex gap-2 w-full max-w-md items-center">
+    <div className="flex flex-col items-center justify-center min-h-screen bg-background px-2">
+      <h1 className="text-5xl sm:text-8xl font-bold mb-6 text-center">TəmuSəarch</h1>
+      <form
+        onSubmit={handleSubmit}
+        className="flex flex-col sm:flex-row gap-2 w-full max-w-md items-center"
+      >
         <Input
           type="text"
           placeholder="Type your search..."
           value={query}
           onChange={e => setQuery(e.target.value)}
+          className="w-full text-base sm:text-lg py-2 sm:py-3"
         />
-        <Button type="submit">
+        <Button
+          type="submit"
+          className="w-full sm:w-auto text-base sm:text-lg py-2 sm:py-3"
+        >
           <Search className="mr-2" />
           Search
         </Button>
