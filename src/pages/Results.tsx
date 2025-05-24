@@ -39,8 +39,8 @@ const Results: React.FC = () => {
     setLoading(true)
     setError(null)
     const endpoint = llmEnhanced
-      ? `http://localhost:8000/llm/enhanced-search?query=${encodeURIComponent(q)}`
-      : `http://localhost:8000/search?query=${encodeURIComponent(q)}`
+      ? `http://api.temusearch.nabilmuafa.com/llm/enhanced-search?query=${encodeURIComponent(q)}`
+      : `http://api.temusearch.nabilmuafa.com/search?query=${encodeURIComponent(q)}`
     fetch(endpoint)
       .then(res => {
         if (!res.ok) throw new Error("Failed to fetch results")
